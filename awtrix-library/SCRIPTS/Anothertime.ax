@@ -1,0 +1,342 @@
+# @hub WkxRvlZTvA9O 74961028c408dd7d03cbb66cdaba791a3fc87ca1dbcad3c48d6ac3e154939d44
+# @name Anothertime
+# @desc Always see time and other widgets
+# @author toinux@gmail.com
+# @version 1.4
+# @config sc color "Seconds color" default=#FF00FF
+# @config sa select "Seconds animation" options=none,rewind,fade default=rewind
+# @config ta select "Time animation" options=scroll,fade default=fade
+# @config tad slider "Time animation duration" min=100 max=2000 default=500 unit=ms
+# @config dsty select "Date style" default=icon options=icon,calendar
+# @config wsty select "Week style" default=dotted2 options=large,progress,dotted,dotted2
+# @config wc color "Week days color" default=#00FFFF
+# @config wdc color "Current day color" default=#FF00FF
+# @config ssun bool "Week starts Sunday" default=false
+# @config wa select "Widgets animation" options=scroll,fade default=fade
+# @config wad slider "Widgets animation duration" min=100 max=2000 default=500 unit=ms
+# @config ttopic text "Temperature topic" default=""
+# @config htopic text "Humidity topic" default=""
+# @config btopic text "Battery topic" default=""
+# @config wlist text "Widgets" default="date,temperature,humidity,battery" help="ex: date,temperature@5,humidity,date@4,battery" maxlen=200
+import math
+class a
+var b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S
+def parse_widgets()
+var T=[]
+var U=store.get("wlist")
+if U!=nil
+for V:re.matchall("[^,]+",U)
+var W=re.match("(date|temperature|humidity|battery)(@([0-9]+))?$",V)
+if W!=nil
+T.push({"name":W[1],
+"duration":W[3]==nil?self.h:clamp(num(W[3],self.h),1,60)})
+end
+end
+end
+if size(T)==0
+T.push({"name":"date","duration":self.h})
+end
+return T
+end
+def init()
+self.update()
+self.b=["0","0","0","0"]
+self.c=["0","0","0","0"]
+self.f=nil
+self.h=3
+self.g=self.parse_widgets()
+self.i=0
+self.k=self.g[0]["name"]
+self.l=nil
+self.j=self.g[0]["duration"]
+self.m=nil
+self.u=store.get("wa")
+self.v=store.get("wad")
+self.r=store.get("sc")
+self.Q=store.get("sa")
+self.s=store.get("ta")
+self.t=store.get("tad")
+self.R=500
+self.S=nil
+self.n=store.get("wsty")
+self.o=store.get("wc")
+self.p=store.get("wdc")
+self.q=store.get("ssun")
+self.I=store.get("dsty")
+self.z="?"
+self.F=-1
+self.E=self.subscribe_topic("btopic",/T,U->self.set_battery(U))
+self.C=self.subscribe_topic("ttopic",/T,U->self.set_temperature(U))
+self.D=self.subscribe_topic("htopic",/T,U->self.set_humidity(U))
+end
+def subscribe_topic(T,U)
+var V=store.get(T)
+if V==nil||size(V)==0 return false end
+mqtt.subscribe(V,U)
+return true
+end
+def update()
+var T=self.C?self.A:sensor.temperature()
+self.x=T==nil?"?":str(round(settings.get("useCelsius")?T:(T*1.8+32)))
+var U=self.D?self.B:sensor.humidity()
+self.y=U==nil?"?":str(round(U))
+if!self.E
+self.set_battery(sensor.battery())
+end
+self.G=day()
+self.H=str(self.G)
+self.w=self.get_color("timeColor")
+self.J=self.get_color("dateColor")
+self.K=self.get_color("temperatureColor")
+self.L=self.get_color("humidityColor")
+self.M=self.get_color("batteryColor")
+self.N=self.get_color("calendarHeaderColor")
+self.O=self.get_color("calendarBodyColor")
+self.P=self.get_color("calendarTextColor")
+end
+def get_color(T)
+var U=settings.get(T)
+return U==nil?settings.get("textColor"):U
+end
+def set_battery(T)
+self.F=T==nil?-1:num(T)
+self.z=self.F<0?"?":str(self.F)
+end
+def set_temperature(T)
+self.A=T==nil?nil:num(T)
+end
+def set_humidity(T)
+self.B=T==nil?nil:num(T)
+end
+def loop()
+if self.j<=0
+if size(self.g)>1
+self.l=self.k
+self.i=(self.i+1)%size(self.g)
+self.k=self.g[self.i]["name"]
+self.j=self.g[self.i]["duration"]
+self.m=epoch_ms()
+else
+self.j=self.g[0]["duration"]
+end
+end
+self.j-=1
+self.update()
+end
+def build_digits()
+var T=hour()
+var U=minute()
+self.b=[str(T/10),str(T%10),str(U/10),str(U%10)]
+self.d=self.b[0]+self.b[1]
+self.e=self.b[2]+self.b[3]
+var V=U-1
+var W=T
+if V<0 V=59 W=(T-1<0)?23:T-1 end
+self.c=[str(W/10),str(W%10),str(V/10),str(V%10)]
+self.f=U
+end
+def fade_color(T,U)
+if T==nil return self.fade_color(0xFFFFFF,U)end
+if U>=1.0 return T end
+var V=(T>>16)&0xFF
+var W=(T>>8)&0xFF
+var X=T&0xFF
+return rgb(int(V*U),int(W*U),int(X*U))
+end
+def draw_widget(T,U,V)
+var W=19
+var X=self.fade_color(0xFFFFFF,U)
+var Y=self.w
+var Z=""
+if T=="date"
+if self.I=="calendar"
+Y=self.P
+W=21
+rect_fill(W,V,11,2,self.fade_color(self.N,U))
+rect_fill(W,V+2,11,5,self.fade_color(self.O,U))
+W-=self.G<10?2:4
+else
+var a0=self.fade_color(0x8B898C,U)
+var b0=self.fade_color(0x0036FF,U)
+rect_fill(W,V+1,5,2,b0)
+rect_fill(W,V+3,5,3,X)
+line(W+1,V,W+1,V+1,a0)
+line(W+3,V,W+3,V+1,a0)
+pixel(W+1,V+4,a0)
+pixel(W+3,V+4,a0)
+Y=self.J
+end
+Z=self.H
+elif T=="temperature"
+var c0=self.fade_color(0xFF4C50,U)
+pixel(W+2,V,X)
+line(W+1,V+1,W+1,V+2,X)
+line(W+3,V+1,W+3,V+2,X)
+pixel(W+2,V+2,c0)
+rect_fill(W,V+3,5,2,X)
+rect_fill(W+1,V+3,3,2,c0)
+rect_fill(W+1,V+5,3,1,X)
+Z=self.x
+Y=self.K
+elif T=="battery"
+var d0=self.fade_color(0x00FF00,U)
+rect(W,V,5,6,X)
+pixel(W,V,0x000000)
+pixel(W+4,V,0x000000)
+for e0:1..4
+if self.F>(100-25*e0)
+line(W+1,V+e0,W+3,V+e0,d0)
+end
+end
+pixel(W+1,V+1,X)
+pixel(W+3,V+1,X)
+Z=self.z
+Y=self.M
+elif T=="humidity"
+var f0=self.fade_color(0xD5F6FF,U)
+var g0=self.fade_color(0xBDF3FF,U)
+var h0=self.fade_color(0x62E2FF,U)
+var i0=self.fade_color(0x40DAFE,U)
+var j0=self.fade_color(0x00AEFF,U)
+var k0=self.fade_color(0x0089CD,U)
+pixel(W+2,V,f0)
+pixel(W+2,V+1,g0)
+rect_fill(W+1,V+2,3,3,h0)
+rect_fill(W+1,V+2,2,2,g0)
+pixel(W+1,V+2,f0)
+line(W,V+3,W,V+4,X)
+pixel(W+4,V+3,j0)
+pixel(W+1,V+2,X)
+pixel(W+3,V+4,i0)
+pixel(W+4,V+4,k0)
+line(W+1,V+5,W+2,V+5,j0)pixel(W+3,V+5,k0)
+Z=self.y
+Y=self.L
+end
+var l0=self.fade_color(Y,U)
+if size(Z)>2
+scroll_text(W+6,V+6,6,Z,l0,{"mode":"bounce","speed":40})
+else
+text(W+6,V+6,Z,l0)
+end
+end
+def draw()
+if minute()!=self.f
+self.build_digits()
+end
+clear()
+var T=epoch_ms()
+var U=T%60000
+var V=0
+var W=6
+if second()%2>0
+var X=(T%1000)/1000.0
+var Y=(math.cos(2*math.pi*X+math.pi)+1)*0.5
+text(V+8,W,":",self.fade_color(self.w,Y))
+end
+if U<self.t
+var Y=real(U)/self.t
+for Z:0..3
+if self.b[Z]!=self.c[Z]
+if self.s=="scroll"
+var a0=int(Y*8)
+text(V,W+a0-8,self.b[Z],self.w)
+text(V,W+a0,self.c[Z],self.w)
+else
+var b0=(Y<0.5)?self.c[Z]:self.b[Z]
+text(V,W,b0,self.fade_color(self.w,(math.cos(2*math.pi*Y)+1)*0.5))
+end
+else
+text(V,W,self.b[Z],self.w)
+end
+V+=4
+if Z==1 V+=2 end
+end
+else
+text(0,6,self.d,self.w)
+text(10,6,self.e,self.w)
+end
+var c0=17
+if self.Q!="none"&&U>=60000-self.R&&self.S==nil
+self.S=T
+end
+if U<100
+self.S=nil
+end
+var d0=0
+var Y=0.0
+var e0=1.0
+if self.S!=nil
+var f0=T-self.S
+var g0=clamp(f0*1.0/self.R,0.0,1.0)
+if self.Q=="fade"
+d0=c0
+e0=1.0-g0
+else
+var h0=c0*(1.0-g0)
+d0=int(h0)
+Y=h0-d0
+end
+else
+var i0=(U*c0)/59000.0
+d0=int(i0)
+Y=i0-d0
+end
+var j0=self.fade_color(self.r,e0)
+for Z:0..d0-1
+pixel(Z,7,j0)
+end
+if d0<c0
+pixel(d0,7,self.fade_color(self.r,Y*e0))
+end
+if self.m!=nil
+var f0=T-self.m
+if f0>=self.v
+self.m=nil
+self.draw_widget(self.k,1.0,0)
+else
+var Y=f0*1.0/self.v
+if self.u=="scroll"
+var a0=int(Y*8)
+self.draw_widget(self.k,1,a0-8)
+self.draw_widget(self.l,1,a0)
+else
+self.draw_widget((Y<0.5)?self.l:self.k,(math.cos(2*math.pi*Y)+1)*0.5,0)
+end
+end
+else
+self.draw_widget(self.k,1.0,0)
+end
+var k0=self.q?weekday():(weekday()+6)%7
+V=18
+if self.n=="large"
+line(V,7,31,7,self.o)
+line(V+k0*2,7,V+k0*2+1,7,self.p)
+elif self.n=="progress"
+line(V,7,31,7,self.o)
+line(V,7,V+k0*2+1,7,self.p)
+elif self.n=="dotted"
+line(V,7,31,7,0x000000)
+var Z=0
+while Z<7
+pixel(V+Z*2,7,Z==k0?self.p:self.o)
+Z+=1
+end
+elif self.n=="dotted2"
+line(V,7,31,7,0x000000)
+var Z=0
+var l0=V
+while Z<7
+if Z==k0
+line(l0,7,l0+1,7,self.p)
+l0+=3
+else
+pixel(l0,7,self.o)
+l0+=2
+end
+Z+=1
+end
+end
+end
+end
+return a()

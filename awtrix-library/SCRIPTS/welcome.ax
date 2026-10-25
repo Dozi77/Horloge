@@ -1,0 +1,66 @@
+# @name Welcome app
+# @desc Affiche welcome Maelle & Carole suivi d'un coeur bien espacé
+# @display 32x8
+
+class App
+  var started, text_width, msg
+
+  def on_show()
+    self.started = now_ms()
+    self.msg = "Welcome Maelle & Carole"
+    # Ajustement de la fin de boucle pour laisser le cœur sortir proprement
+    self.text_width = 106 
+  end
+
+  def draw()
+    clear()
+    if self.started == nil self.on_show() end
+    
+    var elapsed = now_ms() - self.started
+    var speed = 0.02 
+    var x = 32 - int(elapsed * speed)
+    
+    if x < -self.text_width
+      self.started = now_ms()
+      x = 32
+    end
+
+    # 1. Couleur changeante globale pour le texte
+    var hue = int(elapsed * 0.1) % 360
+    var text_color = self.hsv_to_rgb(hue, 255, 255)
+    
+    # 2. Affichage du texte
+    text(x, 6, self.msg, text_color)
+    
+    # 3. Position ajustée à 92 pixels pour créer l'espace parfait après "Carole"
+    var heart_x = x + 92
+    
+    # Dessin du cœur rouge (Rouge pur : 0xFF0000)
+    var r = 0xFF0000
+    pixel(heart_x + 1, 1, r)  pixel(heart_x + 2, 1, r)  pixel(heart_x + 4, 1, r)  pixel(heart_x + 5, 1, r)
+    pixel(heart_x, 2, r)      pixel(heart_x + 1, 2, r)  pixel(heart_x + 2, 2, r)  pixel(heart_x + 3, 2, r)  pixel(heart_x + 4, 2, r)  pixel(heart_x + 5, 2, r)  pixel(heart_x + 6, 2, r)
+    pixel(heart_x, 3, r)      pixel(heart_x + 1, 3, r)  pixel(heart_x + 2, 3, r)  pixel(heart_x + 3, 3, r)  pixel(heart_x + 4, 3, r)  pixel(heart_x + 5, 3, r)  pixel(heart_x + 6, 3, r)
+      pixel(heart_x + 1, 4, r)  pixel(heart_x + 2, 4, r)  pixel(heart_x + 3, 4, r)  pixel(heart_x + 4, 4, r)  pixel(heart_x + 5, 4, r)
+        pixel(heart_x + 2, 5, r)  pixel(heart_x + 3, 5, r)  pixel(heart_x + 4, 5, r)
+          pixel(heart_x + 3, 6, r)
+  end
+
+  def hsv_to_rgb(h, s, v)
+    var r, g, b
+    var f = (h % 60) * 255 / 60
+    var p = (v * (255 - s)) / 255
+    var q = (v * (255 - (s * f) / 255)) / 255
+    var t = (v * (255 - (s * (255 - f)) / 255)) / 255
+    var i = (h / 60) % 6
+    if i == 0 r = v g = t b = p
+    elif i == 1 r = q g = v b = p
+    elif i == 2 r = p g = v b = t
+    elif i == 3 r = p g = q b = v
+    elif i == 4 r = t g = p b = v
+    else r = v g = p b = q
+    end
+    return (r * 65536) + (g * 256) + b
+  end
+end
+
+return App()
