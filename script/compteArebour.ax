@@ -1,0 +1,125 @@
+# @name Compte a rebours
+# @desc Affichage alterné : Chiffre puis Mot (Zéro chevauchement)
+# @display 32x8
+# @config  target_y number "1. Annee cible"          default=2026 min=2025 max=2050
+# @config  target_m number "2. Mois cible (1-12)"    default=12 min=1 max=12
+# @config  target_d number "3. Jour cible (1-31)"    default=25 min=1 max=31
+# @config  ic       text   "ID de l icone"           default="" 
+# @config  label    text   "Texte a afficher"        default="JOURS" maxlen=8
+# @config  soon     number "Alerte couleur a"        default=7 min=0 max=365 unit=Jours
+# @config  tint     color  "Couleur chiffre"         default=#FFAA00
+# @config  warn     color  "Couleur alerte"          default=#FF3000
+# @config  lcol     color  "Couleur texte"           default=#FFFFFF
+# @config  hide     bool   "Masquer si expire"       default=false
+
+class App
+  var target, ic, label, soon, tint, warn, lcol, hide
+  var left, num_str, sub_str, colour, ticks, started
+
+  def init()
+    self.ic    = store.get("ic", "")
+    self.label = store.get("label", "")
+    self.soon  = store.get("soon", 7)
+    self.tint  = store.get("tint", 0xFFAA00)
+    self.warn  = store.get("warn", 0xFF3000)
+    self.lcol  = store.get("lcol", 0xFFFFFF)
+    self.hide  = store.get("hide", false)
+    if self.ic == nil self.ic = "" end
+    if self.label == nil self.label = "" end
+
+    self.target  = nil
+    self.left    = nil
+    self.num_str = nil
+    self.ticks   = 0
+    self.started = nil
+
+    var y = int(store.get("target_y", 2026))
+    var m = int(store.get("target_m", 12))
+    var d = int(store.get("target_d", 25))
+    
+    if y > 0 && m > 0 && d > 0
+      self.target = self.day_number(y, m, d)
+    end
+  end
+
+  def day_number(y, m, d)
+    if m <= 2 y -= 1 end
+    var era = y / 400
+    var yoe = y - era * 400
+    var mp  = m > 2 ? m - 3 : m + 9
+    var doy = (153 * mp + 2) / 5 + d - 1
+    return era * 146097 + yoe * 365 + yoe / 4 - yoe / 100 + doy
+  end
+
+  def update()
+    if self.target == nil || year() <= 0 return false end
+    var left = self.target - self.day_number(year(), month(), day())
+    self.left = left
+
+    if left > 0
+      self.num_str = str(left)
+      self.sub_str = self.label
+    elif left == 0
+      self.num_str = "0"
+      self.sub_str = "AUJ."
+    else
+      self.num_str = "0"
+      self.sub_str = self.label
+    end
+    self.colour = left <= self.soon ? self.warn : self.tint
+    return true
+  end
+
+  def loop()
+    self.ticks -= 1
+    if self.ticks <= 0
+      self.ticks = self.update() ? 60 : 1
+    end
+  end
+
+  def on_show()
+    self.started = now_ms()
+    self.update()
+  end
+
+  def should_show()
+    if self.hide && self.left != nil && self.left < 0 return false end
+    return true
+  end
+
+  def draw()
+    clear()
+    
+    # 1. Dessin de l'icône 8x8 stable à gauche
+    if self.ic == "" || !icon(self.ic, 0, 0)
+      rect(0, 0, 8, 8, 0x333333)
+    end
+
+    var x0 = 9
+    var w  = width() - x0
+
+    if self.num_str == nil
+      font("small")
+      text(x0 + 6, 6, "...", 0x444444)
+      return
+    end
+
+    if self.started == nil self.started = now_ms() end
+    var elapsed = now_ms() - self.started
+
+    # Alternance toutes les 2 secondes (2000 millisecondes)
+    if (elapsed / 2000) % 2 == 0
+      # ÉCRAN A : Le chiffre s'affiche en grand et centré au milieu des 8px
+      font("small")
+      var nw = text_ink_width(self.num_str)
+      text(x0 + (w - nw) / 2, 6, self.num_str, self.colour)
+    else
+      # ÉCRAN B : Le mot s'affiche à son tour en grand et centré
+      font("small")
+      var sw = text_ink_width(self.sub_str)
+      text(x0 + (w - sw) / 2, 6, self.sub_str, self.lcol)
+    end
+  end
+end
+
+return App()
